@@ -1,0 +1,8 @@
+# .hgignore
+#
+
+syntax: glob
+
+.pio
+.vscode
+*zip
