@@ -8,19 +8,20 @@ The web server, capable of streaming video from an OV2640 or OV7670 OmniVision T
 
 # Table of Contents 
 <!-- TOC -->
- 
+
 - [1. Changes to the Original Example](#1-changes-to-the-original-example)
+  - [1.1. Warning](#11-warning)
 - [2. The PlatformIO Project Configuration File](#2-the-platformio-project-configuration-file)
-  - [2.1. Setting the correct Wi-Fi Credentials - Mandatory](#21-setting-the-correct-wi-fi-credentials---mandatory)
-  - [2.2. Choosing the correct board - Mandatory](#22-choosing-the-correct-board---mandatory)
-  - [2.3. Changing the log level - Optional](#23-changing-the-log-level---optional)
+  - [2.1. Setting the Correct Wi-Fi Credentials - Mandatory](#21-setting-the-correct-wi-fi-credentials---mandatory)
+  - [2.2. Choosing the Correct Board - Mandatory](#22-choosing-the-correct-board---mandatory)
+  - [2.3. Changing the Log Level - Optional](#23-changing-the-log-level---optional)
   - [2.4. Assigning a Static IP Address  - Optional](#24-assigning-a-static-ip-address----optional)
-  - [2.5. Enabling a mDNS local host name - Optional](#25-enabling-a-mdns-local-host-name---optional)
-  - [2.6. Enabling the flash LED - Optional](#26-enabling-the-flash-led---optional)
+  - [2.5. Enabling a mDNS Local Host Name - Optional](#25-enabling-a-mdns-local-host-name---optional)
+  - [2.6. Enabling the Flash LED - Optional](#26-enabling-the-flash-led---optional)
   - [2.7. Enabling Face Detection and Recognition - Optional](#27-enabling-face-detection-and-recognition---optional)
   - [2.8. Notes](#28-notes)
 - [3. Arduino Project](#3-arduino-project)
-  - [3.1. A Cnfiguration file](#31-configuration-file)
+  - [3.1. A Configuration File for the Arduino Project](#31-a-configuration-file-for-the-arduino-project)
   - [3.2. Note](#32-note)
 - [4. Usage](#4-usage)
 - [5. References](#5-references)
@@ -50,7 +51,22 @@ Two changes not directly related to the above were made
   1. Set the `grab_mode` to `CAMERA_GRAB_LATEST` in the camera configuration struct in `CameraWebServer.ino`. 
   1. The addition of an `#include "stdlib_noniso.h"` line at the start of the `app_httpd.cpp` to get rid of a spurious error report in **PlatformIO** about `itoa` being an unknown function.
 
-The second of these changes is not necessary, but the first is important. It will avoid a lot of frustration with ESP2-CAM users wanting to use the flash function and it will remove the unreliability of the still image capture function. In other words, it should clear the problem incorrectly attributed to a bug introduced in the newer versions of the SDK in section [2.6. Enabling the flash LED - Optional](#26-enabling-the-flash-led---optional).
+The second of these changes is not necessary, but the first is important. It will avoid a lot of frustration with ESP32-CAM users wanting to use the flash function and it will remove the unreliability of the still image capture function. In other words, it should clear the problem incorrectly attributed to a bug introduced in the newer versions of the SDK in section [2.6. Enabling the flash LED - Optional](#26-enabling-the-flash-led---optional).
+
+
+### 1.1. Warning
+
+The `grab_mode` parameter was added to the camera configuration structure only in the latest version of the ESP32 Arduino core (version 2.0.2) which is not yet used in the stable PlatformIO espressif32 Arduino platform. A test for version of the ESP32 core is therefore done before setting its value.
+
+```c++
+#if defined(ARDUINO_ESP32_RELEASE_2_0_2)
+  config.grab_mode = CAMERA_GRAB_LATEST;   // https://github.com/espressif/arduino-esp32/issues/5805#issuecomment-951861112
+#endif
+```
+
+This is brittle and is sure to break when a newer version of the core is used in the Arduino esp32 core or in the PlatformIO espressif32 Arduino platform.
+
+
 
 ## 2. The PlatformIO Project Configuration File
 
