@@ -26,6 +26,8 @@
 
 #include "ini.hpp"
 
+//#define USE_EASYTARGET_LED_INTENSITY_SCALING // https://github.com/easytarget/esp32-cam-webserver
+
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_ARDUHAL_ESP_LOG)
 #include "esp32-hal-log.h"
 #define TAG ""
@@ -58,8 +60,14 @@ static const char *TAG = "camera_httpd";
 #ifdef CONFIG_LED_ILLUMINATOR_ENABLED
 int led_duty = 0;
 bool isStreaming = false;
+
 // scale maximum duty cycle by CONFIG_LED_MAX_INTENSITY/100 instead of using CONFIG_LED_MAX_INTENSITY as a ceiling
+#if defined(USE_EASYTARGET_LED_INTENSITY_SCALING)
+const int pwmMax2 = ((pow(2, CONFIG_FLASH_PWM_BITS)-1)*CONFIG_LED_MAX_INTENSITY)/300; // avoid division by 3 in enable_led(bool en)
+#else
 const int pwmMax = ((pow(2, CONFIG_FLASH_PWM_BITS)-1)*CONFIG_LED_MAX_INTENSITY)/160;  // avoid division by 1.6 in enable_led(bool en)
+#endif
+
 #ifdef CONFIG_LED_LEDC_LOW_SPEED_MODE
 #define CONFIG_LED_LEDC_SPEED_MODE LEDC_LOW_SPEED_MODE
 #else
@@ -281,17 +289,26 @@ static int run_face_recognition(dl_matrix3du_t *image_matrix, box_array_t *net_b
 #endif
 
 #ifdef CONFIG_LED_ILLUMINATOR_ENABLED
-// Using "logarithmic-like" scaling of the intensity: if x is led_duty/255 then the
-// actual duty cycle is ((x+0.3)^2 - 0.09)/1.6 * PWM_MAX_DUTY
-// note that pwmMax is PWM_MAX_DUTY/1.6 and PWM_MAX_DUTY = (2^CONFIG_FLASH_PWM_BITS -1)*CONFIG_LED_MAX_INTENSITY
+// Using "exponential-like" scaling of the intensity: if x is led_duty/255 then the
+// actual duty cycle is [((x+0.3)^2 - 0.09)/1.6] * PWM_MAX_DUTY
+// note that pwmMax is PWM_MAX_DUTY/1.6 and PWM_MAX_DUTY = (2^CONFIG_FLASH_PWM_BITS -1)*(CONFIG_LED_MAX_INTENSITY/100)
+//
+// Easystarget version of the scaling
+// actual duty cylle is [(2^(2*x) - 1)/3] * PWM_MAX_DUTY)
+// note that pwmMax2 is PWM_MAX_DUTY/3 and PWM_MAX_DUTY = (2^CONFIG_FLASH_PWM_BITS -1)*(CONFIG_LED_MAX_INTENSITY/100)
 void enable_led(bool en)
 { // Turn LED On or Off
     int duty = en ? led_duty : 0;
     //ESP_LOGI(TAG, "Set LED duty to %d", duty);
     if (duty)
     {
+#if defined(USE_EASYTARGET_LED_INTENSITY_SCALING)
+      double d = duty/128.0;
+      duty = round() (pow(2, d) - 1)*pwmMax2 );
+#else
       double d = (duty/255.0) + 0.3;
       duty = round( (d*d-0.09)*pwmMax );
+#endif
     }
     ledcWrite(CONFIG_LED_LEDC_CHANNEL, duty);
     ESP_LOGI(TAG, "Set LED intensity to %d", duty);
