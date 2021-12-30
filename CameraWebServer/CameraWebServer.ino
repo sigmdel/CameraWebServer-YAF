@@ -1,30 +1,12 @@
+#include <Arduino.h>
 #include "esp_camera.h"
 #include <WiFi.h>
 #include "core_version.h" // to set grab_mode in latest ESP32 arduino core
-#include "ini.hpp"
+#include "config.h"
+#include "camera_pins.h"
 #if defined(CONFIG_MDNS_ADVERTISE_ENABLED)
   #include "ESPmDNS.h"
 #endif
-
-//**************************************************************************
-// Moved to platformio.ini or ini.hpp in Arduino
-//
-// 1. Serial Baud
-// 2. Wi-Fi network credentials
-// 3. The selection of the camera model
-//            CAMERA_MODEL_WROVER_KIT // Has PSRAM
-//            CAMERA_MODEL_ESP_EYE // Has PSRAM
-//            CAMERA_MODEL_M5STACK_PSRAM // Has PSRAM
-//            CAMERA_MODEL_M5STACK_V2_PSRAM // M5Camera version B Has PSRAM
-//            CAMERA_MODEL_M5STACK_WIDE // Has PSRAM
-//            CAMERA_MODEL_M5STACK_ESP32CAM // No PSRAM
-//            CAMERA_MODEL_M5STACK_UNITCAM // No PSRAM
-//            CAMERA_MODEL_AI_THINKER // Has PSRAM
-//            CAMERA_MODEL_TTGO_T_JOURNAL // No PSRAM
-//            CAMERA_MODEL_CUSTOM_CAM
-//**************************************************************************
-
-#include "camera_pins.h"
 
 void startCameraServer();
 
@@ -90,12 +72,23 @@ void setup() {
     s->set_brightness(s, 1); // up the brightness just a bit
     s->set_saturation(s, -2); // lower the saturation
   }
-  // drop down frame size for higher initial frame rate
-  s->set_framesize(s, FRAMESIZE_QVGA);
 
 #if defined(CAMERA_MODEL_M5STACK_WIDE) || defined(CAMERA_MODEL_M5STACK_ESP32CAM)
   s->set_vflip(s, 1);
   s->set_hmirror(s, 1);
+#endif
+
+#if defined(CONFIG_H_MIRROR)
+  s->set_hmirror(s, CONFIG_H_MIRROR);
+#endif
+#if defined(CONFIG_V_FLIP)
+  s->set_vflip(s, CONFIG_V_FLIP);
+#endif
+#if defined(CONFIG_DEFAULT_RESOLUTION)
+  s->set_framesize(s, CONFIG_DEFAULT_RESOLUTION);
+#endif
+#if defined(CONFIG_DEFAULT_QUALITY)
+  s->set_quality(s, CONFIG_DEFAULT_QUALITY);
 #endif
 
 #if defined(CONFIG_STATIC_IP_ENABLED)

@@ -23,8 +23,7 @@
 #include "sdkconfig.h"
 #include "camera_index.h"
 #include "math.h"
-
-#include "ini.hpp"
+#include "config.h"
 
 //#define USE_EASYTARGET_LED_INTENSITY_SCALING // https://github.com/easytarget/esp32-cam-webserver
 
