@@ -11,18 +11,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#include "math.h"
 #include "stdlib_noniso.h"
 #include "esp_http_server.h"
 #include "esp_timer.h"
 #include "esp_camera.h"
 #include "img_converters.h"
 #include "fb_gfx.h"
-//#include "driver/ledc.h"
 #include "esp32-hal-ledc.h"
-//#include "camera_index.h"
-#include "sdkconfig.h"
+//#include "sdkconfig.h"
 #include "camera_index.h"
-#include "math.h"
 #include "config.h"
 
 //#define USE_EASYTARGET_LED_INTENSITY_SCALING // https://github.com/easytarget/esp32-cam-webserver
@@ -35,11 +33,10 @@
 static const char *TAG = "camera_httpd";
 #endif
 
-#if CONFIG_ESP_FACE_DETECT_ENABLED
-
+#ifdef CONFIG_ESP_FACE_DETECT_ENABLED
 #include "fd_forward.h"
 
-#if CONFIG_ESP_FACE_RECOGNITION_ENABLED
+#ifdef CONFIG_ESP_FACE_RECOGNITION_ENABLED
 #include "fr_forward.h"
 
 #define ENROLL_CONFIRM_TIMES 5
@@ -61,7 +58,7 @@ int led_duty = 0;
 bool isStreaming = false;
 
 // scale maximum duty cycle by CONFIG_LED_MAX_INTENSITY/100 instead of using CONFIG_LED_MAX_INTENSITY as a ceiling
-#if defined(USE_EASYTARGET_LED_INTENSITY_SCALING)
+#ifdef USE_EASYTARGET_LED_INTENSITY_SCALING
 const int pwmMax2 = ((pow(2, CONFIG_FLASH_PWM_BITS)-1)*CONFIG_LED_MAX_INTENSITY)/300; // avoid division by 3 in enable_led(bool en)
 #else
 const int pwmMax = ((pow(2, CONFIG_FLASH_PWM_BITS)-1)*CONFIG_LED_MAX_INTENSITY)/160;  // avoid division by 1.6 in enable_led(bool en)
@@ -88,13 +85,13 @@ static const char *_STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %
 httpd_handle_t stream_httpd = NULL;
 httpd_handle_t camera_httpd = NULL;
 
-#if CONFIG_ESP_FACE_DETECT_ENABLED
+#ifdef CONFIG_ESP_FACE_DETECT_ENABLED
 
 static int8_t detection_enabled = 0;
 
 static mtmn_config_t mtmn_config = {0};
 
-#if CONFIG_ESP_FACE_RECOGNITION_ENABLED
+#ifdef CONFIG_ESP_FACE_RECOGNITION_ENABLED
 static int8_t recognition_enabled = 0;
 static int8_t is_enrolling = 0;
 static face_id_list id_list = {0};
@@ -146,8 +143,8 @@ static int ra_filter_run(ra_filter_t *filter, int value)
     return filter->sum / filter->count;
 }
 
-#if CONFIG_ESP_FACE_DETECT_ENABLED
-#if CONFIG_ESP_FACE_RECOGNITION_ENABLED
+#ifdef CONFIG_ESP_FACE_DETECT_ENABLED
+#ifdef CONFIG_ESP_FACE_RECOGNITION_ENABLED
 static void rgb_print(dl_matrix3du_t *image_matrix, uint32_t color, const char *str)
 {
     fb_data_t fb;
@@ -229,7 +226,7 @@ static void draw_face_boxes(dl_matrix3du_t *image_matrix, box_array_t *boxes, in
     }
 }
 
-#if CONFIG_ESP_FACE_RECOGNITION_ENABLED
+#ifdef CONFIG_ESP_FACE_RECOGNITION_ENABLED
 static int run_face_recognition(dl_matrix3du_t *image_matrix, box_array_t *net_boxes)
 {
     dl_matrix3du_t *aligned_face = NULL;
@@ -301,7 +298,7 @@ void enable_led(bool en)
     //ESP_LOGI(TAG, "Set LED duty to %d", duty);
     if (duty)
     {
-#if defined(USE_EASYTARGET_LED_INTENSITY_SCALING)
+#ifdef USE_EASYTARGET_LED_INTENSITY_SCALING
       double d = duty/128.0;
       duty = round() (pow(2, d) - 1)*pwmMax2 );
 #else
@@ -397,7 +394,7 @@ static esp_err_t capture_handler(httpd_req_t *req)
     snprintf(ts, 32, "%ld.%06ld", fb->timestamp.tv_sec, fb->timestamp.tv_usec);
     httpd_resp_set_hdr(req, "X-Timestamp", (const char *)ts);
 
-#if CONFIG_ESP_FACE_DETECT_ENABLED
+#ifdef CONFIG_ESP_FACE_DETECT_ENABLED
     size_t out_len, out_width, out_height;
     uint8_t *out_buf;
     bool s;
@@ -423,7 +420,7 @@ static esp_err_t capture_handler(httpd_req_t *req)
         int64_t fr_end = esp_timer_get_time();
         ESP_LOGI(TAG, "JPG: %uB %ums", (uint32_t)(fb_len), (uint32_t)((fr_end - fr_start) / 1000));
         return res;
-#if CONFIG_ESP_FACE_DETECT_ENABLED
+#ifdef CONFIG_ESP_FACE_DETECT_ENABLED
     }
 
     dl_matrix3du_t *image_matrix = dl_matrix3du_alloc(1, fb->width, fb->height, 3);
@@ -455,7 +452,7 @@ static esp_err_t capture_handler(httpd_req_t *req)
     if (net_boxes)
     {
         detected = true;
-#if CONFIG_ESP_FACE_RECOGNITION_ENABLED
+#ifdef CONFIG_ESP_FACE_RECOGNITION_ENABLED
         if (recognition_enabled)
         {
             face_id = run_face_recognition(image_matrix, net_boxes);
@@ -492,7 +489,7 @@ static esp_err_t stream_handler(httpd_req_t *req)
     size_t _jpg_buf_len = 0;
     uint8_t *_jpg_buf = NULL;
     char *part_buf[128];
-#if CONFIG_ESP_FACE_DETECT_ENABLED
+#ifdef CONFIG_ESP_FACE_DETECT_ENABLED
     dl_matrix3du_t *image_matrix = NULL;
     bool detected = false;
     int face_id = 0;
@@ -525,7 +522,7 @@ static esp_err_t stream_handler(httpd_req_t *req)
 
     while (true)
     {
-#if CONFIG_ESP_FACE_DETECT_ENABLED
+#ifdef CONFIG_ESP_FACE_DETECT_ENABLED
         detected = false;
         face_id = 0;
 #endif
@@ -540,7 +537,7 @@ static esp_err_t stream_handler(httpd_req_t *req)
         {
             _timestamp.tv_sec = fb->timestamp.tv_sec;
             _timestamp.tv_usec = fb->timestamp.tv_usec;
-#if CONFIG_ESP_FACE_DETECT_ENABLED
+#ifdef CONFIG_ESP_FACE_DETECT_ENABLED
             fr_start = esp_timer_get_time();
             fr_ready = fr_start;
             fr_face = fr_start;
@@ -565,7 +562,7 @@ static esp_err_t stream_handler(httpd_req_t *req)
                     _jpg_buf_len = fb->len;
                     _jpg_buf = fb->buf;
                 }
-#if CONFIG_ESP_FACE_DETECT_ENABLED
+#ifdef CONFIG_ESP_FACE_DETECT_ENABLED
             }
             else
             {
@@ -599,7 +596,7 @@ static esp_err_t stream_handler(httpd_req_t *req)
                             if (net_boxes)
                             {
                                 detected = true;
-#if CONFIG_ESP_FACE_RECOGNITION_ENABLED
+#ifdef CONFIG_ESP_FACE_RECOGNITION_ENABLED
                                 if (recognition_enabled)
                                 {
                                     face_id = run_face_recognition(image_matrix, net_boxes);
@@ -662,7 +659,7 @@ static esp_err_t stream_handler(httpd_req_t *req)
         }
         int64_t fr_end = esp_timer_get_time();
 
-#if CONFIG_ESP_FACE_DETECT_ENABLED
+#ifdef CONFIG_ESP_FACE_DETECT_ENABLED
         int64_t ready_time = (fr_ready - fr_start) / 1000;
         int64_t face_time = (fr_face - fr_ready) / 1000;
         int64_t recognize_time = (fr_recognize - fr_face) / 1000;
@@ -675,14 +672,14 @@ static esp_err_t stream_handler(httpd_req_t *req)
         frame_time /= 1000;
         uint32_t avg_frame_time = ra_filter_run(&ra_filter, frame_time);
         ESP_LOGI(TAG, "MJPG: %uB %ums (%.1ffps), AVG: %ums (%.1ffps)"
-#if CONFIG_ESP_FACE_DETECT_ENABLED
+#ifdef CONFIG_ESP_FACE_DETECT_ENABLED
                       ", %u+%u+%u+%u=%u %s%d"
 #endif
                  ,
                  (uint32_t)(_jpg_buf_len),
                  (uint32_t)frame_time, 1000.0 / (uint32_t)frame_time,
                  avg_frame_time, 1000.0 / avg_frame_time
-#if CONFIG_ESP_FACE_DETECT_ENABLED
+#ifdef CONFIG_ESP_FACE_DETECT_ENABLED
                  ,
                  (uint32_t)ready_time, (uint32_t)face_time, (uint32_t)recognize_time, (uint32_t)encode_time, (uint32_t)process_time,
                  (detected) ? "DETECTED " : "", face_id
@@ -802,16 +799,16 @@ static esp_err_t cmd_handler(httpd_req_t *req)
     }
 #endif
 
-#if CONFIG_ESP_FACE_DETECT_ENABLED
+#ifdef CONFIG_ESP_FACE_DETECT_ENABLED
     else if (!strcmp(variable, "face_detect")) {
         detection_enabled = val;
-#if CONFIG_ESP_FACE_RECOGNITION_ENABLED
+#ifdef CONFIG_ESP_FACE_RECOGNITION_ENABLED
         if (!detection_enabled) {
             recognition_enabled = 0;
         }
 #endif
     }
-#if CONFIG_ESP_FACE_RECOGNITION_ENABLED
+#ifdef CONFIG_ESP_FACE_RECOGNITION_ENABLED
     else if (!strcmp(variable, "face_enroll"))
         is_enrolling = val;
     else if (!strcmp(variable, "face_recognize")) {
@@ -907,9 +904,9 @@ static esp_err_t status_handler(httpd_req_t *req)
 #else
     p += sprintf(p, ",\"led_intensity\":%d", -1);
 #endif
-#if CONFIG_ESP_FACE_DETECT_ENABLED
+#ifdef CONFIG_ESP_FACE_DETECT_ENABLED
     p += sprintf(p, ",\"face_detect\":%u", detection_enabled);
-#if CONFIG_ESP_FACE_RECOGNITION_ENABLED
+#ifdef CONFIG_ESP_FACE_RECOGNITION_ENABLED
     p += sprintf(p, ",\"face_enroll\":%u,", is_enrolling);
     p += sprintf(p, "\"face_recognize\":%u", recognition_enabled);
 #endif
@@ -1178,7 +1175,7 @@ void startCameraServer()
 
     ra_filter_init(&ra_filter, 20);
 
-#if CONFIG_ESP_FACE_DETECT_ENABLED
+#ifdef CONFIG_ESP_FACE_DETECT_ENABLED
 
     mtmn_config.type = FAST;
     mtmn_config.min_face = 80;
@@ -1194,7 +1191,7 @@ void startCameraServer()
     mtmn_config.o_threshold.nms = 0.7;
     mtmn_config.o_threshold.candidate_number = 1;
 
-#if CONFIG_ESP_FACE_RECOGNITION_ENABLED
+#ifdef CONFIG_ESP_FACE_RECOGNITION_ENABLED
     face_id_init(&id_list, FACE_ID_SAVE_NUMBER, ENROLL_CONFIRM_TIMES);
 #endif
 
