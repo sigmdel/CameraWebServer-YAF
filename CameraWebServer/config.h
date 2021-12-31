@@ -1,8 +1,8 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#include <esp_camera.h>
-#include "core_version.h" // to set grab_mode in latest ESP32 arduino core
+#include "core_version.h" // to get the installed ESP32 arduino core version
+#include "sensor.h"       // for framesize_t enumerated type to set the default camera resolution
 
 /*********************************************************************************
 Supported camera models
@@ -13,6 +13,22 @@ Supported camera models
 
  WARNING! PSRAM is required for UXGA resolution and high JPEG quality otherwise
           only partial images will be transmitted if they exceed the buffer size.
+
+  OV2640 supported image sizes           Additional sizes for 3MP Sensors
+    FRAMESIZE_96X96,    // 96x96           FRAMESIZE_FHD,      // 1920x1080
+    FRAMESIZE_QQVGA,    // 160x120         FRAMESIZE_P_HD,     //  720x1280
+    FRAMESIZE_QCIF,     // 176x144         FRAMESIZE_P_3MP,    //  864x1536
+    FRAMESIZE_HQVGA,    // 240x176         FRAMESIZE_QXGA,     // 2048x1536
+    FRAMESIZE_240X240,  // 240x240
+    FRAMESIZE_QVGA,     // 320x240       Additional sizes for 3MP Sensors
+    FRAMESIZE_CIF,      // 400x296         FRAMESIZE_QHD,      // 2560x1440
+    FRAMESIZE_HVGA,     // 480x320         FRAMESIZE_WQXGA,    // 2560x1600
+    FRAMESIZE_VGA,      // 640x480         FRAMESIZE_P_FHD,    // 1080x1920
+    FRAMESIZE_SVGA,     // 800x600         FRAMESIZE_QSXGA,    // 2560x1920
+    FRAMESIZE_XGA,      // 1024x768
+    FRAMESIZE_HD,       // 1280x720
+    FRAMESIZE_SXGA,     // 1280x1024
+    FRAMESIZE_UXGA,     // 1600x1200
 *********************************************************************************/
 
 // Select one and only one module
@@ -33,29 +49,31 @@ Supported camera models
 
 #if defined(CAMERA_MODEL_WROVER_KIT)
   // Camera settings at startup
-  #define CONFIG_DEFAULT_RESOLUTION FRAMESIZE_SVGA  // 800x600
-  #define CONFIG_DEFAULT_QUALITY 4
+  //#define CONFIG_DEFAULT_RESOLUTION FRAMESIZE_SVGA  // 800x600
+  //#define CONFIG_DEFAULT_QUALITY 4
   //#define CONFIG_V_FLIP
   //#define CONFIG_H_MIRROR
 #endif
 
 #if defined(CAMERA_ESP_EYE)
   // Camera settings at startup
-  #define CONFIG_DEFAULT_RESOLUTION FRAMESIZE_SVGA  // 800x600
-  #define CONFIG_DEFAULT_QUALITY 4
+  //#define CONFIG_DEFAULT_RESOLUTION FRAMESIZE_SVGA  // 800x600
+  //#define CONFIG_DEFAULT_QUALITY 4
   //#define CONFIG_V_FLIP
   //#define CONFIG_H_MIRROR
 #endif
 
 #if defined(CAMERA_MODEL_M5STACK_WIDE) || defined(CAMERA_MODEL_M5STACK_ESP32CAM)
   // Camera settings at startup
-  #define CONFIG_DEFAULT_RESOLUTION FRAMESIZE_SVGA  // 800x600
-  #define CONFIG_DEFAULT_QUALITY 4
+  //#define CONFIG_DEFAULT_RESOLUTION FRAMESIZE_SVGA  // 800x600
+  //#define CONFIG_DEFAULT_QUALITY 4
   #define CONFIG_V_FLIP
   #define CONFIG_H_MIRROR
 #endif
 
 #if defined(CAMERA_MODEL_AI_THINKER)
+  #define LED_BUILTIN     33
+  #define LED_BUILTIN_ON  LOW
   // Flash LED configuration
   #define CONFIG_FLASH_LED 4
   #define CONFIG_LED_LEDC_CHANNEL  LEDC_CHANNEL_7   // Channel 0 is used by camera
@@ -68,7 +86,7 @@ Supported camera models
 #endif
 
 #if defined(CAMERA_MODEL_CUSTOM_CAM)
-  // custom camera pin configuration
+  // custom camera pin configuration, ESP32-CAM configuration shown
   #define CONFIG_CAMERA_PIN_PWDN  32
   #define CONFIG_CAMERA_PIN_RESET -1
   #define CONFIG_CAMERA_PIN_XCLK  0
@@ -91,8 +109,8 @@ Supported camera models
   //#define CONFIG_LED_LEDC_CHANNEL  LEDC_CHANNEL_7  // channel 0 is used by camera
 
   // camera settings at startup
-  #define CONFIG_DEFAULT_RESOLUTION FRAMESIZE_SVGA   // 800x600
-  #define CONFIG_DEFAULT_QUALITY 4
+  //#define CONFIG_DEFAULT_RESOLUTION FRAMESIZE_SVGA   // 800x600
+  //#define CONFIG_DEFAULT_QUALITY 4
   //#define CONFIG_V_FLIP
   //#define CONFIG_H_MIRROR
 #endif
@@ -110,10 +128,6 @@ Supported camera models
 //#define CONFIG_MDNS_ADVERTISE_ENABLED           // Optional. If mDNS is enabled, the default hostname is "esp32-cam.local"
 //#define CONFIG_ESP_FACE_DETECT_ENABLED          // Optional. Works at low resolution <= 320x240
 //#define CONFIG_ESP_FACE_RECOGNITION_ENABLED     // Optional. Works at low resolution <= 320x240
-
-#if defined(ARDUINO_ESP32_RELEASE_2_0_0) || defined(ARDUINO_ESP32_RELEASE_2_0_2)
-#define HAS_GRAB_MODE
-#endif
 
 #if defined(CONFIG_STATIC_IP_ENABLED)
 #define CONFIG_STATICIP "192.168.1.27"
@@ -137,6 +151,12 @@ Supported camera models
 #endif
 #endif
 
+// Nothing below should need change
+
+#if defined(ARDUINO_ESP32_RELEASE_1_0_6)     // Assuming version 1.0.6 or newer ESP32-Arduino core is used
+  #define NO_GRAB_MODE
+#endif
+
 // sanity checks
 #if defined(CONFIG_LED_LEDC_CHANNEL) && !defined(CONFIG_FLASH_LED)
   #error "Flash LED pin must be defined"
@@ -149,6 +169,10 @@ Supported camera models
 #if defined(CONFIG_LED_MAX_INTENSITY) && (CONFIG_LED_MAX_INTENSITY > 100)
   #undef CONFIG_LED_MAX_INTENSITY
   #define CONFIG_LED_MAX_INTENSITY 100
+#endif
+
+#if !defined(ARDUINO_ESP32_RELEASE_1_0_6) && !defined(ARDUINO_ESP32_RELEASE_2_0_0) && defined(CONFIG_ESP_FACE_DETECT_ENABLED)
+  #error "The installed version of the ESP32-Arduino core does not contain the required face detection library"
 #endif
 
 #endif // #ifndef CONFIG_H

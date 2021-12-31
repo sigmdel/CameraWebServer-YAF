@@ -40,7 +40,7 @@ void setup() {
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_JPEG;
-#if defined(HAS_GRAB_MODE)
+#if !defined(NO_GRAB_MODE)
   config.grab_mode = CAMERA_GRAB_LATEST;   // https://github.com/espressif/arduino-esp32/issues/5805#issuecomment-951861112
   Serial.println("Camera buffer grab mode set to latest image");
 #endif
