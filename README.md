@@ -2,9 +2,9 @@
 
 ### What everyone was waiting for: *Y*et *A*nother *F*ork of the [CameraWebServer](https://github.com/espressif/arduino-esp32/tree/master/libraries/ESP32/examples/Camera/CameraWebServer) example by Espressif.
 
-## Version 1.2.0
+## Version 1.2.1
 
-This version of the `CameraWebServer`, based on the October 21, 2021 Espressif code, will compile in the Arduino and the PlatformIO environments. It is compatible with versions 1.0.6, 2.0.0, 2.0.1 and 2.0.2 of the [arduino-esp32](https://github.com/espressif/arduino-esp32) core. Note that facial detection and recognition will not work with versions 2.0.1 and 2.0.2 of the core.
+This version of the `CameraWebServer`, based on the October 21, 2021 Espressif code, will compile in the Arduino and the PlatformIO environments. It is compatible with versions 1.0.6, 2.0.0, 2.0.1 and 2.0.2 of the [arduino-esp32](https://github.com/espressif/arduino-esp32) core. Note that facial detection and recognition will only work with versions 1.0.6 and 2.0.0 of the core.
 
 The web server, capable of streaming video from an OV2640 or OV7670 OmniVision Technologies camera, runs on an ESP32. To use the higher resolutions supported by the camera, PSRAM must be available. Supported devices include the Espressif ESP-EYE, some M5Stack and TTGO models with camera, and the Ai Thinker ESP32-CAM and its many clones.
 
@@ -122,7 +122,7 @@ As it is, the project will compile in the PlatformIO and the Arduino development
 
 The correct ESP32 camera module must be chosen. For most boards that will mean uncommenting the correct `CAMERA_MODEL_XXXX` directive. Of course, only one such directive can be defined. 
 
-The ESP32-CAM has a flash LED. To enable its use the I/O pin used to control the flash and the LEDC channel used to generate the PMW signal are defined in a board specific configuration block. One could also want to change the initial camera resolution and image quality and control if the image is flipped horizontally and vertically. Again this is done in the board-specific configuration block. 
+The ESP32-CAM has a flash LED. To enable its use the I/O pin used to control the flash and the LEDC channel used to generate the PMW signal are defined in its board specific configuration block. One could also want to change the initial camera resolution and image quality and control if the image is flipped horizontally and vertically. Again this is done in the board-specific configuration block. 
 
 Currently the file does not have many board-specific configuration blocks, presumably, the other ESP32 camera boards will work well with the default values. It is always possible to add another board-specific block or to modify one.
 
@@ -216,16 +216,17 @@ At full intensity, the flash LED is quite bright and generates a considerable am
 
 ## 3. Further Notes
 
-The `CameraWebServer-arduino-1-2-0.zip` archive found in release 1.2.0 contains just the files needed for the Arduino project which is the content of the `CameraWebServer` directory.
+The `CameraWebServer-arduino-x-x-x.zip` archive found in the corresponding  x.x.x release contains just the files needed for the Arduino project. In other words, it's a zip archive of the the `CameraWebServer` directory.
 
-In version 2.0.0 of the ESP32 Arduino core, a new field was added to the `camera_config_t` structure defined in `esp_camera.h`. Called `grab_mode`, it controls how images are pulled from the image buffer. By default it is set to `CAMERA_GRAP_WHEN_EMPTY` which presumably means that an image capture is done only once the buffer is empty. Since the buffer holds two images by default, it could take up to three clicks of the `Get Still` button in the web interface before a picture is taken. The value is changed to `CAMERA_GRAB_LATEST` in `setup()` and now the `Get Still` button works as expected. Setting the grab mode is controlled by the `HAS_GRAB_MODE` directive defined in `config.h`.
+In version 2.0.0 of the ESP32 Arduino core, a new field was added to the `camera_config_t` structure defined in `esp_camera.h`. Called `grab_mode`, it controls how images are pulled from the image buffer. By default it is set to `CAMERA_GRAP_WHEN_EMPTY` which presumably means that an image capture is done only once the buffer is empty. Since the buffer holds two images by default, it could take up to three clicks of the `Get Still` button in the web interface before a picture is taken. The value is changed to `CAMERA_GRAB_LATEST` in `setup()` and now the `Get Still` button works as expected. Setting the grab mode is controlled by the `NO_GRAB_MODE` directive defined in `config.h`.
 
 ```
-#if defined(ARDUINO_ESP32_RELEASE_2_0_0) || defined(ARDUINO_ESP32_RELEASE_2_0_2)
-  #define HAS_GRAB_MODE
+#if defined(ARDUINO_ESP32_RELEASE_1_0_6)     // Assuming ESP32-Arduino core version 1.0.6 or newer is used
+  #define NO_GRAB_MODE
 #endif
 ```
-This approach makes the sketch compatible with version 1.0.6, 2.0.0, 2.0.1 and 2.0.2 of the ESP32 Arduino core (it seems that `ARDUINO_ESP32_RELEASE_2_0_1` was never defined). Unfortunately, this is brittle and will be broken when version 2.0.2 is replaced with something new.
+
+This sketch will be compatible with version 1.0.6 of the ESP32-Arduino core currently used in the stable Espressif 32 v3.4.0 platform in PlatformIO. At the same time, the project will be compatible with version 2.0.0 and newer of the ESP32-Arduino cores available in the Arduino IDE. It is assumed that a version of the ESP32-Arduino core older than version 1.0.6 will not be used.
 
 
 ## 4. Usage
