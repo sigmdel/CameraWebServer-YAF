@@ -31,12 +31,36 @@ Supported camera models
 
 // Board specific configuration
 
+#if defined(CAMERA_MODEL_WROVER_KIT)
+  // Camera settings at startup
+  #define CONFIG_DEFAULT_RESOLUTION FRAMESIZE_SVGA  // 800x600
+  #define CONFIG_DEFAULT_QUALITY 4
+  //#define CONFIG_V_FLIP
+  //#define CONFIG_H_MIRROR
+#endif
+
+#if defined(CAMERA_ESP_EYE)
+  // Camera settings at startup
+  #define CONFIG_DEFAULT_RESOLUTION FRAMESIZE_SVGA  // 800x600
+  #define CONFIG_DEFAULT_QUALITY 4
+  //#define CONFIG_V_FLIP
+  //#define CONFIG_H_MIRROR
+#endif
+
+#if defined(CAMERA_MODEL_M5STACK_WIDE) || defined(CAMERA_MODEL_M5STACK_ESP32CAM)
+  // Camera settings at startup
+  #define CONFIG_DEFAULT_RESOLUTION FRAMESIZE_SVGA  // 800x600
+  #define CONFIG_DEFAULT_QUALITY 4
+  #define CONFIG_V_FLIP
+  #define CONFIG_H_MIRROR
+#endif
+
 #if defined(CAMERA_MODEL_AI_THINKER)
   // Flash LED configuration
   #define CONFIG_FLASH_LED 4
   #define CONFIG_LED_LEDC_CHANNEL  LEDC_CHANNEL_7   // Channel 0 is used by camera
 
-  // camera settings at startup
+  // Camera settings at startup
   #define CONFIG_DEFAULT_RESOLUTION FRAMESIZE_SVGA  // 800x600
   #define CONFIG_DEFAULT_QUALITY 4
   //#define CONFIG_V_FLIP
@@ -100,7 +124,7 @@ Supported camera models
 #endif
 
 #if defined(CONFIG_MDNS_ADVERTISE_ENABLED)
-//#define CONFIG_LOCAL_HOSTNAME esp32-cam-01"     // Optional. Custom local hostname. Here "esp32-cam-01.local"
+  //#define CONFIG_LOCAL_HOSTNAME "esp32-cam-01"     // Replaces the default "esp32-cam"
 #endif
 
 #if defined(CONFIG_FLASH_LED)
