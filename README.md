@@ -2,27 +2,27 @@
 
 ### What everyone was waiting for: *Y*et *A*nother *F*ork of the [CameraWebServer](https://github.com/espressif/arduino-esp32/tree/master/libraries/ESP32/examples/Camera/CameraWebServer) example by Espressif.
 
-This (December 26, 2021) rebuild version of the repository is better structured to make it easier to support both the PlatformIO and Arduino programming environments.
+## Version 1.2.0
+
+This version of the `CameraWebServer`, based on the October 21, 2021 Espressif code, will compile in the Arduino and the PlatformIO environments. It is compatible with versions 1.0.6, 2.0.0, 2.0.1 and 2.0.2 of the [arduino-esp32](https://github.com/espressif/arduino-esp32) core. Note that facial detection and recognition will not work with versions 2.0.1 and 2.0.2 of the core.
 
 The web server, capable of streaming video from an OV2640 or OV7670 OmniVision Technologies camera, runs on an ESP32. To use the higher resolutions supported by the camera, PSRAM must be available. Supported devices include the Espressif ESP-EYE, some M5Stack and TTGO models with camera, and the Ai Thinker ESP32-CAM and its many clones.
+
+
 
 # Table of Contents 
 <!-- TOC -->
 
 - [1. Changes to the Original Example](#1-changes-to-the-original-example)
-  - [1.1. Warning](#11-warning)
-- [2. The PlatformIO Project Configuration File](#2-the-platformio-project-configuration-file)
-  - [2.1. Setting the Correct Wi-Fi Credentials - Mandatory](#21-setting-the-correct-wi-fi-credentials---mandatory)
-  - [2.2. Choosing the Correct Board - Mandatory](#22-choosing-the-correct-board---mandatory)
+- [2. The `config.h` Configuration File](#2-the-configh-configuration-file)
+  - [2.1. Choosing the Correct Board - Mandatory](#21-choosing-the-correct-board---mandatory)
+  - [2.2. Setting the Correct Wi-Fi Credentials - Mandatory](#22-setting-the-correct-wi-fi-credentials---mandatory)
   - [2.3. Changing the Log Level - Optional](#23-changing-the-log-level---optional)
   - [2.4. Assigning a Static IP Address  - Optional](#24-assigning-a-static-ip-address----optional)
   - [2.5. Enabling a mDNS Local Host Name - Optional](#25-enabling-a-mdns-local-host-name---optional)
-  - [2.6. Enabling the Flash LED - Optional](#26-enabling-the-flash-led---optional)
-  - [2.7. Enabling Face Detection and Recognition - Optional](#27-enabling-face-detection-and-recognition---optional)
-  - [2.8. Notes](#28-notes)
-- [3. Arduino Project](#3-arduino-project)
-  - [3.1. A Configuration File for the Arduino Project](#31-a-configuration-file-for-the-arduino-project)
-  - [3.2. Note](#32-note)
+  - [2.6. Enabling Face Detection and Recognition - Optional](#26-enabling-face-detection-and-recognition---optional)
+  - [2.7. Flash LED Options](#27-flash-led-options)
+- [3. Further Notes](#3-further-notes)
 - [4. Usage](#4-usage)
 - [5. References](#5-references)
 - [6. License](#6-license)
@@ -32,166 +32,121 @@ The web server, capable of streaming video from an OV2640 or OV7670 OmniVision T
 
 ## 1. Changes to the Original Example
 
-The Oct. 11, 2021 [source from Espressif](https://github.com/espressif/arduino-esp32/tree/master/libraries/ESP32/examples/Camera/CameraWebServer) has been slightly changed.
+The original intent was to change the Oct. 11, 2021 [source from Espressif](https://github.com/espressif/arduino-esp32/tree/master/libraries/ESP32/examples/Camera/CameraWebServer) in the least amount possible. But in the end quite a few little things were modified.
 
-  1. Optionally the log level can be changed to see more messages.
+  1. Optionally the log level can be changed to see more information messages.
   1. Optionally a static IP address can be set.
-  1. Optionally the IP address of the gateway, subnet mask and dns servers can be displayed in addition to the IP address of the ESP32.
+  1. Optionally the IP address of the gateway, subnet mask and DNS servers can be displayed in addition to the IP address of the ESP32.
   1. Optionally mDNS advertising can be enabled.
   1. Optionally the flash LED can be enabled.
-  1. Optionally face detection and face recognition can be enabled.
+  1. Optionally face detection and face recognition can be enabled (with some restrictions).
   1. Added a `CAMERA_MODEL_CUSTOM_CAM` definition in `camera_pins.h` to handle new ESP32 camera boards.
-  1. Added a configuration file `ini.hpp` for the Arduino IDE environment that mimics the `platformio.ini` file.
-  1. No editing of the program source is necessary to compile it. All options and settings including the camera model and Wi-Fi credentials are done in the project configuration file which will be 
-       1. `platformio.ini` in PlaformIO, or
-       1. `ini.hpp`in the Arduino IDE.
+  1. Added a configuration file `config.h` to manage all these changes. All options and settings including the camera model and Wi-Fi credentials are done in that file so that there is no need to edit the program source.
   
-Two changes not directly related to the above were made 
+Other changes not directly related to the above were made. Here are the more substantial ones.
  
-  1. Set the `grab_mode` to `CAMERA_GRAB_LATEST` in the camera configuration struct in `CameraWebServer.ino`. 
+  1. `CameraWebServer.ino` was gutted and its content moved to `main.cpp`. That makes both the Arduino IDE and PlatformIO environment happy.
+  1. Set the `grab_mode` to `CAMERA_GRAB_LATEST` in the camera configuration struct in `CameraWebServer.ino` when appropriate (see [4. Further Notes](#4-further-notes)). 
   1. The addition of an `#include "stdlib_noniso.h"` line at the start of the `app_httpd.cpp` to get rid of a spurious error report in **PlatformIO** about `itoa` being an unknown function.
+  1. For some unknown reason, all the `#if SOME_DIRECTIVE` in `app_httpd.cpp` had to be changed to either `#ifdef(SOME_DIRECTIVE)` or `#ifdef SOME_DIRECTIVE`. The latter was chosen.
 
-The second of these changes is not necessary, but the first is important. It will avoid a lot of frustration with ESP32-CAM users wanting to use the flash function and it will remove the unreliability of the still image capture function. In other words, it should clear the problem incorrectly attributed to a bug introduced in the newer versions of the SDK in section [2.6. Enabling the flash LED - Optional](#26-enabling-the-flash-led---optional).
+
+## 2. The `config.h` Configuration File
+
+Here is a partial listing of the configuration file with those aspects that are most important. 
+
+```
+#ifndef CONFIG_H
+#define CONFIG_H
+
+#include <esp_camera.h>
+#include "core_version.h" // to set grab_mode in latest ESP32 arduino core
+
+... 
+
+// Select one and only one module
+// ------------------------------
+
+//#define CAMERA_MODEL_WROVER_KIT         //has PSRAM
+//#define CAMERA_MODEL_ESP_EYE            //has PSRAM
+#define CAMERA_MODEL_AI_THINKER           //has PSRAM
+//#define CAMERA_MODEL_M5STACK_PSRAM      //has PSRAM (M5Camera version A?)
+//#define CAMERA_MODEL_M5STACK_V2_PSRAM   //has PSRAM (M5Camera version B?)
+//#define CAMERA_MODEL_M5STACK_WIDE       //has PSRAM (M5CameraF? )
+//#define CAMERA_MODEL_M5STACK_ESP32CAM   //no PSRAM
+//#define CAMERA_MODEL_M5STACK_UNITCAM    //no PSRAM
+//#define CAMERA_MODEL_TTGO_T_JOURNAL     //no PSRAM
+//#define CAMERA_MODEL_CUSTOM_CAM
+
+// Board specific configuration
+// ----------------------------
+
+#if defined(CAMERA_MODEL_AI_THINKER)
+  // Flash LED configuration
+  #define CONFIG_FLASH_LED 4
+  #define CONFIG_LED_LEDC_CHANNEL  LEDC_CHANNEL_7   // Channel 0 is used by camera
+
+  // camera settings at startup
+  #define CONFIG_DEFAULT_RESOLUTION FRAMESIZE_SVGA  // 800x600
+  #define CONFIG_DEFAULT_QUALITY 4
+  //#define CONFIG_V_FLIP
+  //#define CONFIG_H_MIRROR
+#endif
+
+#if defined(CAMERA_MODEL_CUSTOM_CAM)
+  // custom camera pin configuration
+... 
+#endif
+
+// Common configuration
+// --------------------
+
+#define CONFIG_BAUD 115200                        // PlatformIO: set monitor_speed to the same value
+#define CONFIG_WIFI_SSID "your-ssid"              // Mandatory
+#define CONFIG_WIFI_PWD  "your-password"          // Mandatory
+
+//#define CORE_DEBUG_LEVEL ARDUHAL_LOG_LEVEL_INFO // Optional. Default is ARDUHAL_LOG_LEVEL_ERROR see https://thingpulse.com/esp32-logging/
+//#define CONFIG_STATIC_IP_ENABLED                // Optional. If not defined the IP is obtained from the DHCP server
+//#define CONFIG_SHOW_NETWORK_PARAMS              // Optional
+//#define CONFIG_MDNS_ADVERTISE_ENABLED           // Optional. If mDNS is enabled, the default hostname is "esp32-cam.local"
+//#define CONFIG_ESP_FACE_DETECT_ENABLED          // Optional. Works at low resolution <= 320x240
+//#define CONFIG_ESP_FACE_RECOGNITION_ENABLED     // Optional. Works at low resolution <= 320x240
+
+... 
+```
 
 
-### 1.1. Warning
+As it is, the project will compile in the PlatformIO and the Arduino development environments. However it will not run correctly.
 
-The `grab_mode` parameter was added to the camera configuration structure only in the latest version of the ESP32 Arduino core (version 2.0.2) which is not yet used in the stable PlatformIO espressif32 Arduino platform. A test for version of the ESP32 core is therefore done before setting its value.
+### 2.1. Choosing the Correct Board - Mandatory
 
-```c++
-#if defined(ARDUINO_ESP32_RELEASE_2_0_2)
-  config.grab_mode = CAMERA_GRAB_LATEST;   // https://github.com/espressif/arduino-esp32/issues/5805#issuecomment-951861112
+The correct ESP32 camera module must be chosen. For most boards that will mean uncommenting the correct `CAMERA_MODEL_XXXX` directive. Of course, only one such directive can be defined. 
+
+The ESP32-CAM has a flash LED. To enable its use the I/O pin used to control the flash and the LEDC channel used to generate the PMW signal are defined in a board specific configuration block. One could also want to change the initial camera resolution and image quality and control if the image is flipped horizontally and vertically. Again this is done in the board-specific configuration block. 
+
+Currently the file does not have many board-specific configuration blocks, presumably, the other ESP32 camera boards will work well with the default values. It is always possible to add another board-specific block or to modify one.
+
+The list of supported boards is rather old, many of the boards in it are no longer being produced. There may be new boards on the market with different connections to the camera. If that's the case, select the `CAMERA_MODEL_CUSTOM_CAM` model and modify the assignment of I/O pin to the camera as needed in the 
+
+```
+#if defined(CAMERA_MODEL_CUSTOM_CAM) // custom camera pin configuration
+... 
 #endif
 ```
+block.
 
-This is brittle and is sure to break when a newer version of the core is used in the Arduino esp32 core or in the PlatformIO espressif32 Arduino platform.
+**WARNINGS** 
 
+  1. Choosing the correct camera module here is not all that is required. In the Arduino IDE, the correct ESP32 board must be selected. The equivalent in PlatformIO is to specify the correct board in the `platformio.ini` file.
 
+  2. It would be nice to have newer ESP32 camera modules to thoroughly test the `CAMERA_MODEL_CUSTOM_CAM` approach to handling them. As set up, this custom definition corresponds to the ESP32-CAM and it does work with that board.
 
-## 2. The PlatformIO Project Configuration File
+  3. This project has been tested with a single ESP32-CAM, and one probably not made by AI Thinker at that.
 
-Before compiling the program, at least three build flags in the project configuration file `platformio.ini` must be set correctly and an environment definition for the board being used must be provided. The following file has two board definitions, one for the AI Thinker ESP32-CAM and another for a custom board.
+### 2.2. Setting the Correct Wi-Fi Credentials - Mandatory
 
-```
-; PlatformIO Project Configuration File
+The Wi-Fi macros `CONFIG_WIFI_SSID` and `CONFIG_WIFI_PWD` must be correctly defined otherwise, the ESP32 will be forever trying to connect to a non-existent Wi-Fi network. That will be obvious in the serial monitor where all that will be happening is the continuous printing of '.' at each connection attempt.
 
-; Supported camera models
-;
-; WARNING! A PSRAM IC is required for UXGA resolution and high JPEG quality
-; otherwise only partial images will be transmitted if they exceed the buffer size
-;
-; CAMERA_MODEL_WROVER_KIT         has PSRAM
-; CAMERA_MODEL_ESP_EYE            has PSRAM
-; CAMERA_MODEL_AI_THINKER         has PSRAM
-; CAMERA_MODEL_M5STACK_PSRAM      has PSRAM (M5Camera version A?)
-; CAMERA_MODEL_M5STACK_V2_PSRAM   has PSRAM (M5Camera version B?)
-; CAMERA_MODEL_M5STACK_WIDE       has PSRAM (M5CameraF? )
-; CAMERA_MODEL_M5STACK_ESP32CAM   no PSRAM
-; CAMERA_MODEL_M5STACK_UNITCAM    no PSRAM
-; CAMERA_MODEL_TTGO_T_JOURNAL     no PSRAM
-; CAMERA_MODEL_CUSTOM_CAM         must also define pin assignments, see [env:custom]
-;
-; The camera model must be specified in the build_flags of each board.
-
-
-[platformio]
-default_envs = esp32cam
-
-[extra]
-baud=115200
-build_flags =
-  -D CONFIG_BAUD=${extra.baud}                 ; Mandatory.
-  -D CONFIG_WIFI_SSID=\"my\-ssid\              ; Mandatory.
-  -D CONFIG_WIFI_PWD=\"my\-password\"          ; Mandatory
-  ;-D CORE_DEBUG_LEVEL=ARDUHAL_LOG_LEVEL_INFO  ; Optional. Default is ARDUHAL_LOG_LEVEL_ERROR see https://thingpulse.com/esp32-logging/
-  ;-D CONFIG_STATIC_IP_ENABLED                 ; Optional. If not defined the IP is obtained from the DHCP server
-  ;-D CONFIG_STATICIP=\"192.168.1.27\"         ;  - Mandatory if CONFIG_STATIC_IP_ENABLED is defined
-  ;-D CONFIG_SUBNET=\"255.255.255.0\"          ;  - Mandatory if CONFIG_STATIC_IP_ENABLED is defined
-  ;-D CONFIG_GATEWAY=\"192.168.1.1\"           ;  - Mandatory if CONFIG_STATIC_IP_ENABLED is defined
-  ;-D CONFIG_DNS1=\"8.8.8.8\"                  ;  - Optional DNS server if CONFIG_STATIC_IP_ENABLED. The default is the GATEWAY
-  ;-D CONFIG_DNS2=\"8.8.8.4\"                  ;  - Optional DNS server if CONFIG_STATIC_IP_ENABLED. The default is the GATEWAY
-  ;-D CONFIG_SHOW_NETWORK_PARAMS               ; Optional.
-  ;-D CONFIG_MDNS_ADVERTISE_ENABLED            ; Optional. If mDNS is enabled, the default hostname is "esp32-cam.local"
-  ;-D CONFIG_LOCAL_HOSTNAME=\"esp32\-cam\-01\" ; Optional. Custom local hostname. Here "esp32-cam-01.local"  
-  ;-D CONFIG_LED_ILLUMINATOR_ENABLED           ; Optional. Enables the flash LED
-  ;-D CONFIG_FLASH_PWM_FREQ=50000              ;  - Mandatory if CONFIG_LED_ILLUMINATOR_ENABLED defined. Flash LED PWM frequency
-  ;-D CONFIG_FLASH_PWM_BITS=9                  ;  - Mandatory if CONFIG_LED_ILLUMINATOR_ENABLED defined. Resolution of duty cycle counter
-  ;-D CONFIG_LED_MAX_INTENSITY=100             ;  - Mandatory if CONFIG_LED_ILLUMINATOR_ENABLED defined. A percentage (0..100) of full intensity  
-  ;-D CONFIG_LED_LEDC_CHANNEL=LEDC_CHANNEL_7   ;  - Mandatory if CONFIG_LED_ILLUMINATOR_ENABLED defined. Channel < 8 and > 0 used by camera
-  ;-D CONFIG_ESP_FACE_DETECT_ENABLED           ; Optional. Works at low resolution <= 320x240
-  ;-D CONFIG_ESP_FACE_RECOGNITION_ENABLED      ; Optional. Works at low resolution <= 320x240
-
-[env]
-platform = espressif32
-framework = arduino
-monitor_speed = ${extra.baud}
-
-[env:esp32cam]
-board = esp32cam
-build_flags = ${extra.build_flags}
-  -D CAMERA_MODEL_AI_THINKER
-  -D CONFIG_FLASH_LED=4
-
-[env:custom]
-board = esp32dev                  ; A generic ESP32 board
-build_flags = ${extra.build_flags}
-  -D BOARD_HAS_PSRAM              ; with PSRAM on board, but there is a problem with PSRAM on pre-revision 3 ESP32 chips, add the following fix
-  -mfix-esp32-psram-cache-issue   ; Not needed with ESP32 revision 3. See https://github.com/espressif/esp-idf/issues/2892#issuecomment-754547748
-  -D CAMERA_MODEL_CUSTOM_CAM
-  -D CONFIG_CAMERA_PIN_PWDN=32    ; These macros are mandatory with the CAMERA_MODEL_CUSTOM
-  -D CONFIG_CAMERA_PIN_RESET=-1   ; They map GPIO pins to the camera pins
-  -D CONFIG_CAMERA_PIN_XCLK=0     ; - ditto
-  -D CONFIG_CAMERA_PIN_SIOD=26    ; - ditto
-  -D CONFIG_CAMERA_PIN_SIOC=27    ; - ditto
-  -D CONFIG_CAMERA_PIN_Y9=35      ; - ditto
-  -D CONFIG_CAMERA_PIN_Y8=34      ; - ditto
-  -D CONFIG_CAMERA_PIN_Y7=39      ; - ditto
-  -D CONFIG_CAMERA_PIN_Y6=36      ; - ditto
-  -D CONFIG_CAMERA_PIN_Y5=21      ; - ditto
-  -D CONFIG_CAMERA_PIN_Y4=19      ; - ditto
-  -D CONFIG_CAMERA_PIN_Y3=18      ; - ditto
-  -D CONFIG_CAMERA_PIN_Y2=5       ; - ditto
-  -D CONFIG_CAMERA_PIN_VSYNC=25   ; - ditto
-  -D CONFIG_CAMERA_PIN_HREF=23    ; - ditto
-  -D CONFIG_CAMERA_PIN_PCLK=22    ; - ditto
-```
-
-There should be no problem with the default `monitor_speed` of 115200 bits/second. If another baud is desired then change its value in 
-
-```
-[extra]
-baud=115200
-```
-and the ESP32 serial port will be initialized with the correct speed.
-
-The default environment is for the AI Thinker ESP32-CAM. It can be changed in the `[platformio]` section at the start of the configuration file.
-
-### 2.1. Setting the Correct Wi-Fi Credentials - Mandatory
-
-The first two build flags define the credentials of the Wi-Fi network to which the ESP32 will connect. The name (SSID) and password (PWD) are quoted strings. See `[env:string_defines]` in the Examples section of [Build Options](https://docs.platformio.org/en/latest/projectconf/section_env_build.html) for indications about the correct way of formatting string defines.
-
-### 2.2. Choosing the Correct Board - Mandatory
-
-An environment for the ESP32 board being used must be defined in the configuration file. In addition to identifying the board, the CAMERA_MODEL_xxxx must be specified. This selects a predefined assignment of GPIO pins to the camera pins found in `camera_pins.h`. That is all there is to using any one of the predefined boards. As an example, this is the AI Thinker ESP32-CAM definition:
-
-```
-[env:esp32cam]
-board = esp32cam
-build_flags = ${env.build_flags}
-  -D CAMERA_MODEL_AI_THINKER
-  -D CONFIG_FLASH_LED=4  
-```
-
-Note how most of the build flags are common to all boards so they are defined in the common environment `[env]`, but they must also be explicitly added to the specific board build flags. 
-
-The list of supported ESP32 camera modules is almost out of date, with a number of models no longer being produced, while newly available boards are not in it. For such a board, choose the custom environment. 
-
-```
-[platformio]
-default_envs = custom
-```
-
-and then adjust the GPIO pin assignment in `[env:custom]` section. It would be nice to have a newer ESP32 camera module to thoroughly test this approach. As set up, this custom definition corresponds to the ESP32-CAM and it does work with that board.
 
 ### 2.3. Changing the Log Level - Optional
 
@@ -199,140 +154,78 @@ The firmware prints a log to the serial monitor. By default only messages with a
 
 ### 2.4. Assigning a Static IP Address  - Optional
 
-To assign a static IP address to the ESP32 camera module, uncomment the `CONFIG_STATIC_IP_ENABLED` flag and set the static device IP address, gateway IP address, subnet mask and IP address of the DNS servers. If either of those is not defined then the gateway IP address will be used instead.
+To assign a static IP address to the ESP32 camera module, uncomment the `CONFIG_STATIC_IP_ENABLED` directive. Further down in the `config.h` file, set the desired static device IP address and the correct gateway IP address, subnet mask and IP address of the DNS servers. If either of those is not defined then the gateway IP address will be used instead.
 
-If the default gateway, subnet mask and current DNS servers are not known, leave `CONFIG_STATIC_IP_ENABLED` commented, uncomment the  `CONFIG_SHOW_NETWORK_PARAMS` flag and upload the firmware to the ESP32 board. The current values will be displayed on the serial monitor.
+```
+#if defined(CONFIG_STATIC_IP_ENABLED)
+#define CONFIG_STATICIP "192.168.0.77"
+#define CONFIG_SUBNET "255.255.255.0"
+#define CONFIG_GATEWAY "192.168.0.1"
+#define CONFIG_DNS1 "8.8.8.8"       //   Optional first DNS server, the default is the GATEWAY
+#define CONFIG_DNS2 "8.8.8.4"       //   Optional second DNS server, the default is the GATEWAY
+#endif
+```
+
+If the default gateway, subnet mask and current DNS servers are not known, leave `CONFIG_STATIC_IP_ENABLED` commented, uncomment the  `CONFIG_SHOW_NETWORK_PARAMS` and upload the firmware to the ESP32 board. The current values will be displayed on the serial monitor.
 
 ### 2.5. Enabling a mDNS Local Host Name - Optional      
 
-Uncomment the `CONFIG_MDNS_ADVERTISE_ENABLED` flag to enable mDNS. The web server may then be reachable with the following URL `http://esp32-cam.local/`. The local host name can be changed by defining the `CONFIG_LOCAL_HOSTNAME` macro. Do not append `.local` to the value. 
+Uncomment the `CONFIG_MDNS_ADVERTISE_ENABLED` directive to enable mDNS. The web server may then be reachable with the following URL `http://esp32-cam.local/`. The local host name can be changed by further down in the configuration file defining the `CONFIG_LOCAL_HOSTNAME` macro. 
+
+```
+#if defined(CONFIG_MDNS_ADVERTISE_ENABLED)
+//#define CONFIG_LOCAL_HOSTNAME "esp32-cam-01"     // Replaces the default "esp32-cam"
+#endif
+```
+
+This would be useful if there is more than one ESP32 camera module running this software. Do not append `.local` to the value. 
 
 Either one of the  `CONFIG_STATIC_IP_ENABLES` and `CONFIG_STATIC_IP_ENABLED` directives makes it easier to connect to the web server when there's no longer a serial connection to the ESP32 which displays its IP address. They can be enabled together. 
 
-### 2.6. Enabling the Flash LED - Optional
+### 2.6. Enabling Face Detection and Recognition - Optional
 
-Uncomment the `CONFIG_LED_ILLUMINATOR_ENABLED` build flag to enable the high intensity flash LED found on some ESP32 camera boards. The intensity of the flash is controlled by a pulse-width modulation (PWM) signal from one of the eight high-speed hardware LEDC channels. The `CONFIG_LED_LEDC_CHANNEL=LEDC_CHANNEL_7` macro selects which channel to use, but remember that channel 0 is used by the camera.  The `CONFIG_FLASH_PWM_FREQ` macro defines the frequency of the PWM signal.
+*“Sir, [an ESP32's face recognition] is like a dog's walking on his hind legs. It is not done well; but you are surprised to find it done at all.”*  Samuel Johnson (1709-1784).
 
-The resolution of the duty cycle counter is set with the `CONFIG_FLASH_BITS` macro. A 9-bit value means that the duty cycle can be any value from 0 to 511 (=2^9-1). At full intensity, the flash LED is quite bright and generates a considerable amount of heat. The `CONFIG_LED_MAX_INTENSITY` macro defines a percentage used to reduce the actual length of the duty cycle. Setting this value  lower than 100 will reduce the risk of damaging the LED.
+That is a rather unfair, as both face recognition and identification do work well, but only at QVGA (320x240) or lower resolution, which does considerably reduce the practical use of that functionality. These are enabled by uncommenting the `CONFIG_ESP_FACE_DETECT_ENABLED` and `CONFIG_ESP_FACE_RECOGNITION_ENABLED` directives.
 
-The GPIO pin used to drive the flash LED must be defined in the board's environment. The flash LED is controlled by GPIO 4 on the AI Thinker ESP32-CAM. That is why the `[env:esp32cam]` contains the `-D CONFIG_FLASH_LED=4` build flag.
+**WARNING** 
 
-~~Currently, this addition does not work in the Arduino IDE. It appears to be a problem with the initialization of the LEDC channel. Is this because the ESP32 SDK used in Arduino is version v4.4-dev-3569-g6a7d83af19-dirty while PlatformIO is still at v3.3.5-1-g85c43024c?~~ There was no problem with the initialization of the LEDC channel, the problem was with the choice of the function to set the duty cycle. However, it is necessary to set the grab_mode to CAMERA_GRAB_LATEST in the camera configuration struct in CameraWebServer.ino as explained in [1. Changes to the Original Example](#1-changes-to-the-original-example). Otherwise, the flash will appear not to work at all and the capture of still images will not work reliably in newer versions of the SDK as found in the current Arduino esp32 core. 
+Currently, face detection and hence face recognition will not work with the most recent versions of the [`arduino-esp32`](https://github.com/espressif/arduino-esp32/) core. The `fd_forward.h` and `fr_forward.h` headers and other required files are no longer included, starting with version 2.0.1 of the core. They have been replaced with a completely different facial recognition system, but the `app_httpd.cpp` in the `CameraWebServer` example has not been updated to use the new system. Instead, Espressif added  tests for the directives `CONFIG_ESP_FACE_DETECT_ENABLED` and `CONFIG_ESP_FACE_RECOGNITION_ENABLED` while not defining them. In other words, facial detection and recognition are disabled.
 
-### 2.7. Enabling Face Detection and Recognition - Optional
+In short, face detection and hence face recognition can be enabled in the PlatformIO environment because it still uses version 1.0.6 of the ESP32 Arduino core. In the Arduino environment, it will be necessary to use version 2.0.0. or 1.0.6 of the `esp32 boards` definition.
 
-The last two directives merely make visible compile options found in the `app_httpd.cpp` source file. Face recognition requires that face detection be enabled. The web interface states that these functions work when the resolution of the video stream is CIF (400x296) or lower. With the AI Thinker ESP32-CAM, it turns out that these functions only work at QVGA (320x240) or lower resolution.
 
-To recycle a much abused Samuel Johnson quote: “Sir, [an ESP32's face recognition] is like a dog's walking on his hind legs. It is not done well; but you are surprised to find it done at all.” 
 
-### 2.8. Notes
+### 2.7. Flash LED Options
 
-If no optional build flag is set, then compiling the project will produce the same firmware as the original Arduino project by Espressif.
-
-If the project is built in the PlatformIO environment, it is best to rename `CameraWebServer.ino` to `CameraWebServer.cpp` or even `main.cpp`.
-
-## 3. Arduino Project
-
-The `CameraWebServer/src` directory, containing the following five files
-
-    app_httpd.cpp
-    camera_pins.h
-    camera_index.h
-    CameraWebServer.ino
-    ini.hpp,
-  
-is a complete Arduino project. The first four files are modified versions of the original example project, while the new file `ini.hpp` mimics the `platformio.ini` configuration file.
-
-### 3.1. A Configuration File for the Arduino Project
+When a board has a high intensity LED that can be used as a photographic flash then its  intensity is controlled by a pulse-width modulation (PWM) signal from one of the eight high-speed hardware LEDC channels of the ESP32. Two macros, `CONFIG_FLASH_LED` and `CONFIG_LED_LEDC_CHANNEL` define the I/O port connected to the LED and the LEDC channel used to generate PWM signal. These are defined in the board specific block because these could be different on other boards. See model `CAMERA_MODEL_AI_THINKER` for an example. More parameters must be defined to configure the LEDC channel. When `CONFIG_FLASH_LED` macro is defined, then another four macros are defined.
 
 ```
-#ifndef ARDUINO_INI
-#define ARDUINO_INI
-
-#if !defined(CONFIG_IS_PLATFORMIO)
-
-// Select one and only one board definition
-//
-#define ESP32_CAM
-//#define CUSTOM_CAM
-
-
-// common
-
-#define CONFIG_BAUD 115200                        // Mandatory.
-#define CONFIG_WIFI_SSID "my-ssid"                // Mandatory.
-#define CONFIG_WIFI_PWD  "my-password"            // Mandatory
-//#define CORE_DEBUG_LEVEL ARDUHAL_LOG_LEVEL_INFO // Optional. Default is ARDUHAL_LOG_LEVEL_ERROR see https://thingpulse.com/esp32-logging/
-//#define CONFIG_STATIC_IP_ENABLED                // Optional. If not defined the IP is obtained from the DHCP server
-//#define CONFIG_SHOW_NETWORK_PARAMS              // Optional.
-#define CONFIG_MDNS_ADVERTISE_ENABLED             // Optional. If mDNS is enabled, the default hostname is "esp32-cam.local"
-#define CONFIG_LED_ILLUMINATOR_ENABLED            // Optional. Enables the flash LED. Do not define if there is no flash LED
-//#define CONFIG_ESP_FACE_DETECT_ENABLED          // Optional. Works at low resolution <= 320x240
-//#define CONFIG_ESP_FACE_RECOGNITION_ENABLED     // Optional. Works at low resolution <= 320x240
-
-#if defined(CONFIG_STATIC_IP_ENABLED)
-#define CONFIG_STATICIP "192.168.1.27"            //  - Mandatory if CONFIG_STATIC_IP_ENABLED is defined
-#define CONFIG_SUBNET "255.255.255.0"             //  - Mandatory if CONFIG_STATIC_IP_ENABLED is defined
-#define CONFIG_GATEWAY "192.168.1.1"              //  - Mandatory if CONFIG_STATIC_IP_ENABLED is defined
-#define CONFIG_DNS1 "8.8.8.8"                     //  - Optional DNS server if CONFIG_STATIC_IP_ENABLED. The default is the GATEWAY
-#define CONFIG_DNS2  "8.8.8.4"                    //  - Optional DNS server if CONFIG_STATIC_IP_ENABLED. The default is the GATEWAY
-#endif
-
-#if defined(CONFIG_MDNS_ADVERTISE_ENABLED)
-//#define CONFIG_LOCAL_HOSTNAME esp32-cam-01"     // Optional. Custom local hostname. Here "esp32-cam-01.local"
-#endif
-
-#if defined(CONFIG_LED_ILLUMINATOR_ENABLED)
-#define CONFIG_FLASH_PWM_FREQ 50000               //   - Mandatory if CONFIG_LED_ILLUMINATOR_ENABLED defined. Flash LED PWM frequency
-#define CONFIG_FLASH_PWM_BITS 9                   //   - Mandatory if CONFIG_LED_ILLUMINATOR_ENABLED defined. Resolution of duty cycle counter
-#define CONFIG_LED_MAX_INTENSITY 100              //   - Mandatory if CONFIG_LED_ILLUMINATOR_ENABLED defined. A percentage (0..100) of full intensity
-#define CONFIG_LED_LEDC_CHANNEL LEDC_CHANNEL_7    //   - Mandatory if CONFIG_LED_ILLUMINATOR_ENABLED defined. Channel < 8 and > 0 used by camera
-#endif
-
-// Board specific configuration
-
-#if defined(ESP32_CAM)
-#define CAMERA_MODEL_AI_THINKER
-#define CONFIG_FLASH_LED 4
-#endif
-
-#if defined(CUSTOM_CAM)
-//#define BOARD_HAS_PSRAM            // with PSRAM on board, but there is a problem with PSRAM on pre-revision 3 ESP32 chips, add the following fix
-//-mfix-esp32-psram-cache-issue      // Not needed with ESP32 revision 3. See https://github.com/espressif/esp-idf/issues/2892#issuecomment-754547748
-#define CAMERA_MODEL_CUSTOM_CAM
-#define CONFIG_CAMERA_PIN_PWDN=32    // These macros are mandatory with the CAMERA_MODEL_CUSTOM,
-#define CONFIG_CAMERA_PIN_RESET=-1   // they map GPIO pins to the camera pins
-#define CONFIG_CAMERA_PIN_XCLK=0     // - ditto
-#define CONFIG_CAMERA_PIN_SIOD=26    // - ditto
-#define CONFIG_CAMERA_PIN_SIOC=27    // - ditto
-#define CONFIG_CAMERA_PIN_Y9=35      // - ditto
-#define CONFIG_CAMERA_PIN_Y8=34      // - ditto
-#define CONFIG_CAMERA_PIN_Y7=39      // - ditto
-#define CONFIG_CAMERA_PIN_Y6=36      // - ditto
-#define CONFIG_CAMERA_PIN_Y5=21      // - ditto
-#define CONFIG_CAMERA_PIN_Y4=19      // - ditto
-#define CONFIG_CAMERA_PIN_Y3=18      // - ditto
-#define CONFIG_CAMERA_PIN_Y2=5       // - ditto
-#define CONFIG_CAMERA_PIN_VSYNC=25   // - ditto
-#define CONFIG_CAMERA_PIN_HREF=23    // - ditto
-#define CONFIG_CAMERA_PIN_PCLK=22    // - ditto
-#if defined(CONFIG_LED_ILLUMINATOR_ENABLED)
-#define CONFIG_FLASH_LED 4
-#endif  //
-#endif  // defined(CUSTOM_CAM)
-
-#endif // !defined(CONFIG_IS_PLATFORMIO)
-
-#endif // #ifndef ARDUINO_INI
+#if defined(CONFIG_FLASH_LED)
+#define CONFIG_LED_ILLUMINATOR_ENABLED
+#define CONFIG_FLASH_PWM_FREQ    50000            // Flash LED PWM frequency
+#define CONFIG_FLASH_PWM_BITS    9                // Resolution of duty cycle counter
+#define CONFIG_LED_MAX_INTENSITY 100              // A percentage (0..100) of full intensity
+... 
 ```
 
-Instead of defining build flags for each board, this file is included at the start of two files `CameraWebServer.ino` and `app_https.cpp`. The various macros defined within are basically the same as the build flags in `platformio.ini` and do not need to be explained any furhter.
+The `CONFIG_LED_ILLUMINATOR_ENABLED` directive ensures that the flash is correctly configured in the `setup()` function. It also enables the automatic use of the flash when capturing still images or streaming video in `app_httpd.cpp`. That LEDC configuration requires setting the PWM frequency (here 50KHz) and the number of bits in the duty cycle counter (here 9). These default values can be changed if desired.
 
-### 3.2. Note
+At full intensity, the flash LED is quite bright and generates a considerable amount of heat. The `CONFIG_LED_MAX_INTENSITY` macro defines a percentage used to reduce the actual length of the duty cycle. Setting this value lower than 100 will reduce the risk of damaging the LED.
 
 
+## 3. Further Notes
 
-The `CameraWebServer-arduino-1-1-0.zip` archive found in release 1.1.0 contains just the files needed for the Arduino project which is the content of the `CameraWebServer` directory.
+The `CameraWebServer-arduino-1-2-0.zip` archive found in release 1.2.0 contains just the files needed for the Arduino project which is the content of the `CameraWebServer` directory.
+
+In version 2.0.0 of the ESP32 Arduino core, a new field was added to the `camera_config_t` structure defined in `esp_camera.h`. Called `grab_mode`, it controls how images are pulled from the image buffer. By default it is set to `CAMERA_GRAP_WHEN_EMPTY` which presumably means that an image capture is done only once the buffer is empty. Since the buffer holds two images by default, it could take up to three clicks of the `Get Still` button in the web interface before a picture is taken. The value is changed to `CAMERA_GRAB_LATEST` in `setup()` and now the `Get Still` button works as expected. Setting the grab mode is controlled by the `HAS_GRAB_MODE` directive defined in `config.h`.
+
+```
+#if defined(ARDUINO_ESP32_RELEASE_2_0_0) || defined(ARDUINO_ESP32_RELEASE_2_0_2)
+  #define HAS_GRAB_MODE
+#endif
+```
+This approach makes the sketch compatible with version 1.0.6, 2.0.0, 2.0.1 and 2.0.2 of the ESP32 Arduino core (it seems that `ARDUINO_ESP32_RELEASE_2_0_1` was never defined). Unfortunately, this is brittle and will be broken when version 2.0.2 is replaced with something new.
 
 
 ## 4. Usage
@@ -364,6 +257,7 @@ There are simply too many to list. Just on [Github](https://github.com), 1,255 r
 
 - [ESP32-CAM example revisited](https://github.com/easytarget/esp32-cam-webserver) by Owen Carter (easytarget) is similar to the previous project. This author implements a working flash LED, but independently of the way the recent version of `app_http.cpp` from Espressif does it. The author does use a logarithmic scale to set the flash intensity which inspired the one used in this repository. Indeed, **many thanks to Owen Carter** for showing the way to handle the intensity of the flash with a  [LED Control (LEDC)](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/ledc.html").
 
+There is a post about these modifications to the `CameraWebServer` example: [Le ESP32-CAM comme serveur vidéo](https://sigmdel.ca/michel/ha/esp8266/ESP32-CAM_02_fr.html). Currently it is only available in French and it has yet to be updated to version 1.2.0 of the project.
 
 ## 6. License
 
