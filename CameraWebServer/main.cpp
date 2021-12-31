@@ -77,16 +77,19 @@ void setup() {
     s->set_saturation(s, -2); // lower the saturation
   }
 
+/*
+// moved to config.h
 #if defined(CAMERA_MODEL_M5STACK_WIDE) || defined(CAMERA_MODEL_M5STACK_ESP32CAM)
   s->set_vflip(s, 1);
   s->set_hmirror(s, 1);
 #endif
+*/
 
-#if defined(CONFIG_H_MIRROR)
-  s->set_hmirror(s, CONFIG_H_MIRROR);
-#endif
 #if defined(CONFIG_V_FLIP)
-  s->set_vflip(s, CONFIG_V_FLIP);
+  s->set_vflip(s, 1);
+#endif
+#if defined(CONFIG_H_MIRROR)
+  s->set_hmirror(s, 1);
 #endif
 
 #if defined(CONFIG_ESP_FACE_DETECT_ENABLED)
