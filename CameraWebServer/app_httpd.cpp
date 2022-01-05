@@ -23,8 +23,6 @@
 #include "camera_index.h"
 #include "config.h"
 
-//#define USE_EASYTARGET_LED_INTENSITY_SCALING // https://github.com/easytarget/esp32-cam-webserver
-
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_ARDUHAL_ESP_LOG)
 #include "esp32-hal-log.h"
 #define TAG ""
@@ -58,7 +56,7 @@ int led_duty = 0;
 bool isStreaming = false;
 
 // scale maximum duty cycle by CONFIG_LED_MAX_INTENSITY/100 instead of using CONFIG_LED_MAX_INTENSITY as a ceiling
-#ifdef USE_EASYTARGET_LED_INTENSITY_SCALING
+#ifdef CONFIG_EASYTARGET_INTENSITY_SCALING
 const int pwmMax2 = ((pow(2, CONFIG_FLASH_PWM_BITS)-1)*CONFIG_LED_MAX_INTENSITY)/300; // avoid division by 3 in enable_led(bool en)
 #else
 const int pwmMax = ((pow(2, CONFIG_FLASH_PWM_BITS)-1)*CONFIG_LED_MAX_INTENSITY)/160;  // avoid division by 1.6 in enable_led(bool en)
@@ -300,7 +298,7 @@ void enable_led(bool en)
     {
 #ifdef USE_EASYTARGET_LED_INTENSITY_SCALING
       double d = duty/128.0;
-      duty = round() (pow(2, d) - 1)*pwmMax2 );
+      duty = round() (pow(2, d) - 1)*pwmMax2);
 #else
       double d = (duty/255.0) + 0.3;
       duty = round( (d*d-0.09)*pwmMax );
@@ -311,12 +309,22 @@ void enable_led(bool en)
 }
 #endif
 
+#ifndef CONFIG_BMP_CAPTURE_DISABLED
 static esp_err_t bmp_handler(httpd_req_t *req)
 {
     camera_fb_t *fb = NULL;
     esp_err_t res = ESP_OK;
     uint64_t fr_start = esp_timer_get_time();
+
+#ifdef CONFIG_LED_ILLUMINATOR_ENABLED
+    enable_led(true);
+    vTaskDelay(150 / portTICK_PERIOD_MS); // The LED needs to be turned on ~150ms before the call to esp_camera_fb_get()
+    fb = esp_camera_fb_get();             // or it won't be visible in the frame. A better way to do this is needed.
+    enable_led(false);
+#else
     fb = esp_camera_fb_get();
+#endif
+
     if (!fb)
     {
         ESP_LOGE(TAG, "Camera capture failed");
@@ -348,6 +356,7 @@ static esp_err_t bmp_handler(httpd_req_t *req)
     ESP_LOGI(TAG, "BMP: %llums, %uB", (uint64_t)((fr_end - fr_start) / 1000), buf_len);
     return res;
 }
+#endif
 
 static size_t jpg_encode_stream(void *arg, size_t index, const void *data, size_t len)
 {
@@ -1137,11 +1146,13 @@ void startCameraServer()
         .handler = stream_handler,
         .user_ctx = NULL};
 
+#ifndef CONFIG_BMP_CAPTURE_DISABLED
     httpd_uri_t bmp_uri = {
         .uri = "/bmp",
         .method = HTTP_GET,
         .handler = bmp_handler,
         .user_ctx = NULL};
+#endif
 
     httpd_uri_t xclk_uri = {
         .uri = "/xclk",
@@ -1203,8 +1214,9 @@ void startCameraServer()
         httpd_register_uri_handler(camera_httpd, &cmd_uri);
         httpd_register_uri_handler(camera_httpd, &status_uri);
         httpd_register_uri_handler(camera_httpd, &capture_uri);
+#ifndef CONFIG_BMP_CAPTURE_DISABLED
         httpd_register_uri_handler(camera_httpd, &bmp_uri);
-
+#endif
         httpd_register_uri_handler(camera_httpd, &xclk_uri);
         httpd_register_uri_handler(camera_httpd, &reg_uri);
         httpd_register_uri_handler(camera_httpd, &greg_uri);
