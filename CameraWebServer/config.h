@@ -31,7 +31,7 @@ Supported camera models
     FRAMESIZE_UXGA,     // 1600x1200
 *********************************************************************************/
 
-// Select one and only one module
+// Select one and only one module         // Mandatory
 //
 //#define CAMERA_MODEL_WROVER_KIT         //has PSRAM
 //#define CAMERA_MODEL_ESP_EYE            //has PSRAM
@@ -118,11 +118,12 @@ Supported camera models
 
 // common configuration
 
-#define CONFIG_BAUD 115200                        // PlatformIO: set monitor_speed to the same value
 #define CONFIG_WIFI_SSID "your-ssid"              // Mandatory
 #define CONFIG_WIFI_PWD  "your-password"          // Mandatory
 
+#define CONFIG_BAUD 115200                        // PlatformIO: set monitor_speed to the same value
 //#define CORE_DEBUG_LEVEL ARDUHAL_LOG_LEVEL_INFO // Optional. Default is ARDUHAL_LOG_LEVEL_ERROR see https://thingpulse.com/esp32-logging/
+//#define CONFIG_BMP_CAPTURE_DISABLED             // Optional. Default is to enable single shot image capture to .BMP format
 //#define CONFIG_STATIC_IP_ENABLED                // Optional. If not defined the IP is obtained from the DHCP server
 //#define CONFIG_SHOW_NETWORK_PARAMS              // Optional
 //#define CONFIG_MDNS_ADVERTISE_ENABLED           // Optional. If mDNS is enabled, the default hostname is "esp32-cam.local"
@@ -130,25 +131,26 @@ Supported camera models
 //#define CONFIG_ESP_FACE_RECOGNITION_ENABLED     // Optional. Works at low resolution <= 320x240
 
 #if defined(CONFIG_STATIC_IP_ENABLED)
-#define CONFIG_STATICIP "192.168.1.27"
-#define CONFIG_SUBNET "255.255.255.0"
-#define CONFIG_GATEWAY "192.168.1.1"
-#define CONFIG_DNS1 "8.8.8.8"                     //   Optional first DNS server, the default is the GATEWAY
-#define CONFIG_DNS2 "8.8.8.4"                     //   Optional second DNS server, the default is the GATEWAY
+  #define CONFIG_STATICIP "192.168.1.27"
+  #define CONFIG_SUBNET "255.255.255.0"
+  #define CONFIG_GATEWAY "192.168.1.1"
+  #define CONFIG_DNS1 "8.8.8.8"                     //   Optional first DNS server, the default is the GATEWAY
+  #define CONFIG_DNS2 "8.8.8.4"                     //   Optional second DNS server, the default is the GATEWAY
 #endif
 
 #if defined(CONFIG_MDNS_ADVERTISE_ENABLED)
-  //#define CONFIG_LOCAL_HOSTNAME "esp32-cam-01"     // Replaces the default "esp32-cam"
+  //#define CONFIG_LOCAL_HOSTNAME esp32-cam-01"     // Optional. Custom local hostname. Here "esp32-cam-01.local"
 #endif
 
 #if defined(CONFIG_FLASH_LED)
-#define CONFIG_LED_ILLUMINATOR_ENABLED
-#define CONFIG_FLASH_PWM_FREQ    50000            // Flash LED PWM frequency
-#define CONFIG_FLASH_PWM_BITS    9                // Resolution of duty cycle counter
-#define CONFIG_LED_MAX_INTENSITY 100              // A percentage (0..100) of full intensity
-#if !defined(CONFIG_LED_LEDC_CHANNEL)
-  #error "Must specify LEDC channel"
-#endif
+  #define CONFIG_LED_ILLUMINATOR_ENABLED
+  #define CONFIG_FLASH_PWM_FREQ    50000            // Flash LED PWM frequency
+  #define CONFIG_FLASH_PWM_BITS    9                // Resolution of duty cycle counter
+  #define CONFIG_LED_MAX_INTENSITY 100              // A percentage (0..100) of full intensity
+  //#define CONFIG_EASYTARGET_INTENSITY_SCALING     // https://github.com/easytarget/esp32-cam-webserver
+  #if !defined(CONFIG_LED_LEDC_CHANNEL)
+    #error "Must specify LEDC channel"
+  #endif
 #endif
 
 // Nothing below should need change
@@ -158,6 +160,10 @@ Supported camera models
 #endif
 
 // sanity checks
+#if defined(CONFIG_STATIC_IP_ENABLED) && defined(CONFIG_SHOW_NETWORK_PARAMS)
+  #warning "Do not define CONFIG_STATIC_IP_ENABLED if CONFIG_SHOW_NETWORK_PARAMS was defined to show the default gateway, subnet mask, etc."
+#endif
+
 #if defined(CONFIG_LED_LEDC_CHANNEL) && !defined(CONFIG_FLASH_LED)
   #error "Flash LED pin must be defined"
 #endif
