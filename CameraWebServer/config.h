@@ -32,7 +32,8 @@ Supported camera models
 *********************************************************************************/
 
 // Select one and only one module         // Mandatory
-//
+// ---------------------------------------------------
+
 //#define CAMERA_MODEL_WROVER_KIT         //has PSRAM
 //#define CAMERA_MODEL_ESP_EYE            //has PSRAM
 #define CAMERA_MODEL_AI_THINKER           //has PSRAM
@@ -46,6 +47,7 @@ Supported camera models
 
 
 // Board specific configuration
+// ----------------------------
 
 #if defined(CAMERA_MODEL_WROVER_KIT)
   // Camera settings at startup
