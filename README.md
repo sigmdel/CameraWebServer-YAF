@@ -295,7 +295,7 @@ There are simply too many to list. Just on [Github](https://github.com), 1,255 r
 
 - [ESP32-CAM example revisited](https://github.com/easytarget/esp32-cam-webserver) by Owen Carter (easytarget) is similar to the previous project. This author implements a working flash LED, but independently of the way the recent version of `app_http.cpp` from Espressif does it. The author does use a logarithmic scale to set the flash intensity which inspired the one used in this repository. Indeed, **many thanks to Owen Carter** for showing the way to handle the intensity of the flash with a  [LED Control (LEDC)](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/ledc.html").
 
-There is a post about these modifications to the `CameraWebServer` example: [Le ESP32-CAM comme serveur vidéo](https://sigmdel.ca/michel/ha/esp8266/ESP32-CAM_02_fr.html). Currently it is only available in French and it has yet to be updated to version 1.2.0 of the project.
+There is a post about these modifications to the `CameraWebServer` example: [Le ESP32-CAM comme serveur vidéo](https://sigmdel.ca/michel/ha/esp8266/ESP32-CAM_02_fr.html). Currently it is only available in French. 
 
 ## 6. License
 
